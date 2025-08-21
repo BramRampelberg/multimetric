@@ -1,3 +1,4 @@
+# This file has been modified by Bram Rampelberg
 from multimetric.cls.base import MetricBase
 
 

@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2023 Konrad Weihmann
 # SPDX-License-Identifier: Zlib
+# This file has been modified by Bram Rampelberg
 
 import argparse
 import json
