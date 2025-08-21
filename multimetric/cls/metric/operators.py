@@ -5,7 +5,6 @@ from multimetric.cls.base import MetricBase
 
 class MetricBaseOperator(MetricBase):
     _needles = [
-        "Token.Name.Class",
         "Token.Name.Decorator",
         "Token.Name.Entity",
         "Token.Name.Exception",
@@ -18,6 +17,9 @@ class MetricBaseOperator(MetricBase):
         "Token.Punctuation",
         "Token.String.Affix",
         "Token.String.Delimiter",
+        "Token.Keyword.Type",
+        "Token.Name",
+        "Token.Name.Builtin",
     ]
 
     METRIC_OPERATORS_SUM = "operators_sum"
