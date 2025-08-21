@@ -21,7 +21,8 @@ class MetricBaseLOC(MetricBase):
         self._metrics[MetricBaseLOC.METRIC_LOC] = 0
         for x in tokens:
             if self._previous_token != x:
-                if x[1].strip(' ').endswith('\n'):
+                if x[1].strip(' ').endswith('\n') and not self._previous_token[1].strip(' ').endswith('\n') and str(self._previous_token[0]) != "Token.Comment.Single" \
+                    and str(x[0]) != "Token.Comment.Single":
                     self._metrics[MetricBaseLOC.METRIC_LOC] += 1
             self._previous_token = x
 

@@ -87,14 +87,22 @@ def ArgParser():
         default=mp.cpu_count(),
         help="Run x jobs in parallel")
     get_additional_parser_args(parser)
-    parser.add_argument("files", nargs='+', help="Files to parse")
+    parser.add_argument("paths", nargs='+', help="File(s) or folder(s) to parse")
+    parser.add_argument(
+        "--ext",
+        type=str,
+        default=None,
+        help="Required for folders. The file extension to process (e.g., .py, .swift)")
     return parser
 
 
 def parse_args(*args):
     RUNARGS = ArgParser().parse_args(*args)
-    # Turn all paths to abs-paths right here
-    RUNARGS.files = [os.path.abspath(x) for x in RUNARGS.files]
+    RUNARGS.paths = [os.path.abspath(x) for x in RUNARGS.paths]
+
+    is_folder_present = any(os.path.isdir(p) for p in RUNARGS.paths)
+    if is_folder_present and not RUNARGS.ext:
+        sys.exit("Error: --ext is required when providing a folder path.")
 
     # Setup logging
     stdout_log = logging.getLogger('stdout')
@@ -118,26 +126,68 @@ def parse_args(*args):
     return RUNARGS
 
 
+def discover_files(paths, extension):
+    """
+    Scans a list of paths, finds files matching the extension in folders,
+    and returns a flat list of unique file paths.
+    """
+    files_to_process = []
+    
+    # If no extension is specified, only process files provided directly.
+    if not extension:
+        for path in paths:
+            if os.path.isfile(path):
+                files_to_process.append(path)
+        return files_to_process
+
+    # Ensure the extension starts with a dot for consistent matching.
+    if not extension.startswith('.'):
+        extension = '.' + extension
+
+    for path in paths:
+        if os.path.isfile(path):
+            # If a file is given directly, check if it matches the extension.
+            if path.endswith(extension):
+                files_to_process.append(path)
+        elif os.path.isdir(path):
+            # If a directory is given, walk through it recursively.
+            for root, _, filenames in os.walk(path):
+                for filename in filenames:
+                    if filename.endswith(extension):
+                        files_to_process.append(os.path.join(root, filename))
+    
+    # Return a sorted list of unique file paths.
+    return list(sorted(set(files_to_process)))
+
+
 def file_process(_file, _args, _importer):
     res = {}
     store = {}
     try:
         _lexer = lexers.get_lexer_for_filename(_file)
-    except ValueError:  # pragma: no cover - bug in pytest-cov
+    except ValueError:
         logging.getLogger('stderr').error(
-            f'The file {_file} could not be identified automatically. Skipping this file.')  # pragma: no cover - bug in pytest-cov
-        return ({}, _file, 'lexer.error', [], {})  # pragma: no cover - bug in pytest-cov
+            f'The file {_file} could not be identified automatically. Skipping this file.')
+        return ({}, _file, 'lexer.error', [], {})
     try:
         with open(_file, "rb") as i:
-            _cnt = i.read()
-            _enc = chardet.detect(_cnt)
-            _cnt = _cnt.decode(_enc["encoding"]).encode("utf-8")
+            _raw_cnt = i.read()
+            _enc = chardet.detect(_raw_cnt)
+            # This is the full source code text as a UTF-8 encoded byte string.
+            _cnt = _raw_cnt.decode(_enc["encoding"]).encode("utf-8")
         _localImporter = {k: FilteredImporter(
             v, _file) for k, v in _importer.items()}
+        
+        # NOTE: The full source code is in `_cnt`. If you have a custom LOC metric,
+        # you can pass the decoded string to it like this:
+        # source_text = _cnt.decode('utf-8')
+        # x.parse_tokens(_lexer.name, tokens, source_text=source_text)
+        
         tokens = list(_lexer.get_tokens(_cnt))
-        if _args.dump:  # pragma: no cover
-            for x in tokens:  # pragma: no cover
-                logging.getLogger('stdout').info(f"{_file}: {x[0]} -> {repr(x[1])}")  # pragma: no cover
+        if _args.dump:
+            for x in tokens:
+                print(f"{_file}: {x[0]} -> {repr(x[1])}")
+                logging.getLogger('stdout').info(f"{_file}: {x[0]} -> {repr(x[1])}")
         else:
             _localMetrics = get_modules_metrics(_args, **_localImporter)
             _localCalc = get_modules_calculated(_args, **_localImporter)
@@ -148,14 +198,21 @@ def file_process(_file, _args, _importer):
             for x in _localCalc:
                 res.update(x.get_results(res))
                 store.update(x.get_internal_store())
-    except Exception as e:  # pragma: no cover
-        logging.getLogger('stderr').exception(e)  # pragma: no cover
-        tokens = []  # pragma: no cover
+    except Exception as e:
+        logging.getLogger('stderr').exception(e)
+        tokens = []
     return (res, _file, _lexer.name, tokens, store)
 
 
 def run(_args):
     _result = {"files": {}, "overall": {}}
+    
+    files_to_process = discover_files(_args.paths, _args.ext)
+    if not files_to_process:
+        logging.getLogger('stderr').error("No files found to process with the given criteria.")
+        return _result
+
+    logging.getLogger('stdout').info(f"Found {len(files_to_process)} file(s) to analyze.")
 
     # Get importer
     _importer = {}
@@ -176,7 +233,7 @@ def run(_args):
 
     with mp.Pool(processes=_args.jobs) as pool:
         results = [pool.apply(file_process, args=(
-            f, _args, _importer)) for f in _args.files]
+            f, _args, _importer)) for f in files_to_process]
 
     for x in results:
         _result["files"][x[1]] = x[0]
@@ -204,12 +261,12 @@ def run(_args):
 
 
 def main():  # pragma: no cover
-    _args = parse_args()  # pragma: no cover
-    _result = run(_args)  # pragma: no cover
-    if not _args.dump:  # pragma: no cover
+    _args = parse_args()
+    _result = run(_args)
+    if not _args.dump and _result and _result.get("files"):
         # Output
-        logging.getLogger('stdout').info(json.dumps(_result, indent=2, sort_keys=True))  # pragma: no cover
+        logging.getLogger('stdout').info(json.dumps(_result, indent=2, sort_keys=True))
 
 
 if __name__ == '__main__':
-    main()  # pragma: no cover
+    main()

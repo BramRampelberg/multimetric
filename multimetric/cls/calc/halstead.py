@@ -7,6 +7,7 @@ from multimetric.cls.base_calc import MetricBaseCalc
 from multimetric.cls.metric.operands import MetricBaseOperands
 from multimetric.cls.metric.operators import MetricBaseOperator
 
+print(f"DEBUG: Running halstead.py from {__file__}")
 
 class MetricBaseCalcHalstead(MetricBaseCalc):
     """A class for calculating Halstead metrics.
@@ -306,3 +307,13 @@ class MetricBaseCalcHalstead(MetricBaseCalc):
         metrics[MetricBaseCalcHalstead.METRIC_HALSTEAD_TIMEREQ] = self._getTime(metrics)
         metrics[MetricBaseCalcHalstead.METRIC_HALSTEAD_BUGS] = self._getBug(metrics)
         return super().get_results(metrics)
+    
+    def get_internal_store(self):
+        """Return the internal store dictionary.
+        
+        Returns
+        -------
+        dict
+            The internal store dictionary.
+        """
+        return {self.__class__.__name__: self._internalstore}
