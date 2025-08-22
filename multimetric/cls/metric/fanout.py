@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2023 Konrad Weihmann
 # SPDX-License-Identifier: Zlib
+# This file has been modifief by Bram Rampelberg
 from multimetric.cls.base import MetricBase
 from multimetric.cls.tokentree import TokenTree
 from multimetric.cls.tokentree import TokenTreeConfig
@@ -77,6 +78,11 @@ class MetricBaseFanout(MetricBase):
             start=[('Token.Keyword', 'import')],
             end=[('Token.Text', '\n')],
             needle=['Token.Name.Namespace'],
+            trim=[' ']),
+        'Swift': TokenTreeConfig(
+            start=[('Token.Keyword.Declaration', 'import')],
+            end=[('Token.Text', '\n')],
+            needle=['Token.Name.Class'],
             trim=[' ']),
         'Lua': TokenTreeConfig(
             start=[('Token.Name.Builtin', 'require')],
