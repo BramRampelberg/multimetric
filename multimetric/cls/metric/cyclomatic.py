@@ -8,7 +8,7 @@ class MetricBaseCyclomaticComplexity(MetricBase):
     __conditions = [
         "if",
         "elif",
-        "case",
+        "switch",
         "for",
         "while",
         "and",
@@ -17,7 +17,6 @@ class MetricBaseCyclomaticComplexity(MetricBase):
         "||",
         "when",
         "catch",
-        "?:",
     ]
 
     METRIC_CYCLOMATIC_COMPLEXITY = "cyclomatic_complexity"
