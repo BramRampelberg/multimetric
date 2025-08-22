@@ -94,6 +94,11 @@ def ArgParser():
         type=str,
         default=None,
         help="Required for folders. The file extension to process (e.g., .py, .swift)")
+    parser.add_argument(
+        "-o", "--output-file",
+        type=str,
+        default=None,
+        help="Path to a file to write the final JSON output to.")
     return parser
 
 
@@ -266,7 +271,24 @@ def main():  # pragma: no cover
     _result = run(_args)
     if not _args.dump and _result and _result.get("files"):
         # Output
-        logging.getLogger('stdout').info(json.dumps(_result, indent=2, sort_keys=True))
+        json_output = json.dumps(_result, indent=2, sort_keys=True)
+        logging.getLogger('stdout').info(json_output)
+        if _args.output_file:
+            try:
+                # Ensure the directory for the output file exists
+                output_dir = os.path.dirname(_args.output_file)
+                if output_dir:  # Check if there's a directory part to the path
+                    os.makedirs(output_dir, exist_ok=True)
+                
+                # Write the file
+                with open(_args.output_file, 'w', encoding='utf-8') as f:
+                    f.write(json_output)
+                
+                # Use stderr for status messages so it doesn't pollute stdout
+                logging.getLogger('stderr').info(f"Successfully wrote output to {_args.output_file}")
+            except (IOError, OSError) as e:
+                logging.getLogger('stderr').error(f"Error writing to output file {_args.output_file}: {e}")
+
 
 
 if __name__ == '__main__':
